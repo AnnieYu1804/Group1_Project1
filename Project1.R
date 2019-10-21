@@ -24,20 +24,32 @@ dim(nhanes_adult1) #n = 7205
 summary(nhanes_adult1$BPSysAve)
 summary(nhanes_adult1$BPDiaAve)
 nhanes_adult1 <- subset(nhanes_adult1, nhanes_adult1$BPDiaAve >0)
+nhanes_adult1 <- subset(nhanes_adult1, nhanes_adult1$BPDia1 >0)
+nhanes_adult1 <- subset(nhanes_adult1, nhanes_adult1$BPDia2 >0)
+nhanes_adult1 <- subset(nhanes_adult1, nhanes_adult1$BPDia3 >0)
 dim(nhanes_adult1) #n = 7178
 summary(nhanes_adult1$BPDiaAve)
+#Excluding malingnant hypertension
+boxplot(nhanes_adult1$BPSys1, nhanes_adult1$BPSys2, nhanes_adult1$BPSys3, nhanes_adult1$BPSysAve)
+boxplot(nhanes_adult1$BPDia1, nhanes_adult1$BPDia2, nhanes_adult1$BPDia3, nhanes_adult1$BPDiaAve)
+nhanes_adult1 <- subset(nhanes_adult1, nhanes_adult1$BPSysAve < 180)
+nhanes_adult1 <- subset(nhanes_adult1, nhanes_adult1$BPDiaAve < 110)
+
+#Dropping cases with missing exposure variables
+nhanes_adult1 <- subset(nhanes_adult1, !is.na(nhanes_adult1$BMI))
+nhanes_adult1 <- subset(nhanes_adult1, !is.na(nhanes_adult1$SleepHrsNight))
 #Selecting only non-pregnant adults
 typeof(nhanes_adult$PregnantNow)
 table(nhanes_adult$PregnantNow)
 levels(nhanes_adult$PregnantNow)
 nhanes_adult1 <- nhanes_adult1[!nhanes_adult1$PregnantNow %in% "Yes",]
-dim(nhanes_adult1) #n = 7109
+dim(nhanes_adult1) #n = 6504
 table(nhanes_adult1$PregnantNow)
 #Exploring potential other exclusion criteria
-colSums(is.na(nhanes_adult1))
+sort(colSums(is.na(nhanes_adult1)))
 typeof(nhanes_adult1$Diabetes)
 levels(nhanes_adult1$Diabetes)
-table(nhanes_adult1$Diabetes) #727/7135 are diabetic i.e. approx 10%
+table(nhanes_adult1$Diabetes) #701/6690 are diabetic i.e. approx 10%
 hist(nhanes_adult1$Age)
 summary(nhanes_adult1$Age) #Oldest person in study is 80 years old
 
@@ -57,25 +69,80 @@ tab <- CreateTableOne(data = nhanes_adult1, vars = variables, factorVars = facva
 table <- print(tab)
 write.csv(table, file = "Table1.csv")
 
-#Data visualisation
-hist(nhanes_adult1$BPSysAve)
+#Data visualisation and manipulation
+hist(nhanes_adult1$BPSysAve) #skewed not a problem
+boxplot(nhanes_adult1$BPSysAve)
 hist(nhanes_adult1$BPDiaAve)
+boxplot(nhanes_adult1$BPDiaAve)
 
 cor(nhanes_adult1$BPSysAve, nhanes_adult1$BPDiaAve)
 qplot(nhanes_adult1$BPSysAve, nhanes_adult1$BPDiaAve)
+#Not highly correlated therefore consider as two separate outcomes
 
+#BMI
 hist(nhanes_adult1$BMI)
-qplot(nhanes_adult1$BMI, nhanes_adult1$BPSysAve)
-cor(!is.na(nhanes_adult1$BMI), nhanes_adult1$BPSysAve)
-qplot(nhanes_adult1$BMI, nhanes_adult1$BPDiaAve)
+nhanes_adult_bmi_18_40 <- subset(nhanes_adult1, nhanes_adult1$BMI >= 18 & nhanes_adult1$BMI <= 40)
+dim(nhanes_adult_bmi_18_40) #6043
+qplot(nhanes_adult_bmi_18_40$BMI, nhanes_adult_bmi_18_40$BPSysAve)
+qplot(nhanes_adult_bmi_18_40$BMI, nhanes_adult_bmi_18_40$BPDiaAve)
 cor(!is.na(nhanes_adult1$BMI), nhanes_adult1$BPDiaAve)
 
+ggplot(nhanes_adult_bmi_18_40, aes(x = BMI,
+                          y = BPSysAve, 
+                          color = Age,)) + geom_point()
+
+ggplot(nhanes_adult_bmi_18_40, aes(x = BMI,
+                                   y = BPDiaAve, 
+                                   color = Age,)) + geom_point()
+
+ggplot(nhanes_adult_bmi_18_40, aes(x = BMI,
+                          y = BPSysAve, 
+                          color = Gender,)) + geom_point()
+
+ggplot(nhanes_adult_bmi_18_40, aes(x = BMI,
+                                   y = BPDiaAve, 
+                                   color = Gender,)) + geom_point()
+
+#Univariate
+model <- lm(nhanes_adult_bmi_18_40$BPSysAve ~ nhanes_adult_bmi_18_40$BMI)
+summary(model)
+plot(model)
+model
+#Multivariate
+#With age and gender
+boxplot(nhanes_adult_bmi_18_40$Age)
+table(nhanes_adult_bmi_18_40$Gender)
+model1 <- lm(nhanes_adult_bmi_18_40$BPSysAve ~ nhanes_adult_bmi_18_40$BMI + nhanes_adult_bmi_18_40$Age +
+               nhanes_adult_bmi_18_40$Gender)
+summary(model1)
+plot(model1)
+
+#With age and gender and race and physical activity, education and alcohol
+?NHANES
+sum(is.na(nhanes_adult_bmi_18_40$Race1))
+table(nhanes_adult_bmi_18_40$Education)
+sum(is.na(nhanes_adult_bmi_18_40$Education))
+hist(nhanes_adult_bmi_18_40$AlcoholYear)
+sum(is.na(nhanes_adult_bmi_18_40$AlcoholYear))
+table(nhanes_adult_bmi_18_40$PhysActive)
+sum(is.na(nhanes_adult_bmi_18_40$PhysActive))
+
+model2 <- lm(nhanes_adult_bmi_18_40$BPSysAve ~ nhanes_adult_bmi_18_40$BMI + 
+               nhanes_adult_bmi_18_40$Age +
+               nhanes_adult_bmi_18_40$Gender + nhanes_adult_bmi_18_40$Race1 + 
+               nhanes_adult_bmi_18_40$Education +
+               nhanes_adult_bmi_18_40$PhysActive)
+summary(model2)
+plot(model2)
+
+#SleepHours
 hist(nhanes_adult1$SleepHrsNight)
 qplot(nhanes_adult1$SleepHrsNight, nhanes_adult1$BPSysAve)
 cor(!is.na(nhanes_adult1$SleepHrsNight), nhanes_adult1$BPSysAve)
 qplot(nhanes_adult1$SleepHrsNight, nhanes_adult1$BPDiaAve)
 cor(!is.na(nhanes_adult1$SleepHrsNight), nhanes_adult1$BPDiaAve)
 
+#Smoke
 boxplot(nhanes_adult1$BPSysAve ~ nhanes_adult1$Smoke100)
 boxplot(nhanes_adult1$BPDiaAve ~ nhanes_adult1$Smoke100)
 
@@ -87,7 +154,7 @@ qplot(nhanes_adult1$Age, nhanes_adult1$BPDiaAve)
 mean(nhanes_adult1$BPSysAve) #120.8394
 mean(nhanes_adult1$BPDiaAve) #70.24504
 
-#Age and BP
+#Gender and BP
 mean(nhanes_adult1$BPSysAve[nhanes_adult1$Gender == "male"])
 mean(nhanes_adult1$BPSysAve[nhanes_adult1$Gender == "female"])
 t.test(nhanes_adult1$BPSysAve[nhanes_adult1$Gender == "male"], nhanes_adult1$BPSysAve[nhanes_adult1$Gender == "female"])
