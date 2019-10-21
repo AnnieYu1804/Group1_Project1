@@ -1,3 +1,5 @@
+rm(list=ls()) #clear environment
+
 #Set up
 install.packages("dplyr")
 update.packages("diplyr")
@@ -134,6 +136,68 @@ model2 <- lm(nhanes_adult_bmi_18_40$BPSysAve ~ nhanes_adult_bmi_18_40$BMI +
                nhanes_adult_bmi_18_40$PhysActive)
 summary(model2)
 plot(model2)
+
+#Model 2/3 
+m3 <- lm(BPSysAve ~ BMI + Age + Gender + HHIncome + Race1 + Education + PhysActive, data=nhanes_adult_bmi_18_40)
+summary(m3)
+plot(m3)
+
+#sequential models
+m1 <- glm(BPSysAve ~ BMI, data=nhanes_adult_bmi_18_40)
+m2 <- glm(BPSysAve ~ BMI + Age + Gender, data=nhanes_adult_bmi_18_40)
+m3 <- glm(BPSysAve ~ BMI + Age + Gender + PhysActive, data=nhanes_adult_bmi_18_40)
+m4 <- glm(BPSysAve ~ BMI + Age + Gender + PhysActive + Race1, data=nhanes_adult_bmi_18_40)
+m5 <- glm(BPSysAve ~ BMI + Age + Gender + PhysActive + Race1 + Education, data=nhanes_adult_bmi_18_40)
+m6 <- glm(BPSysAve ~ BMI + Age + Gender + PhysActive + Race1 + Education + HHIncome, data=nhanes_adult_bmi_18_40)
+summary(m1)
+summary(m2)
+summary(m3)
+summary(m4) #diff between 3 and 4 are small
+summary(m5)
+summary(m6) # jump from 47357 to ~43000
+
+#remove Education?
+m7 <- glm(BPSysAve ~ BMI + Age + Gender + PhysActive + Race1 + HHIncome, data=nhanes_adult_bmi_18_40)
+summary(m7) #44745
+
+#test for parsimony
+LLm1 <- sum(dnorm(nhanes_adult_bmi_18_40$BPSysAve, mean = predict(m1), sd = sqrt(sm1$dispersion), log = TRUE))
+
+-2*LLm1 + 2*3 #50230.62
+
+LLm2 <- sum(dnorm(nhanes_adult_bmi_18_40$BPSysAve, mean = predict(m2), sd = sqrt(sm1$dispersion), log = TRUE))
+
+-2*LLm2 + 2*4 #49067
+
+LLm3 <- sum(dnorm(nhanes_adult_bmi_18_40$BPSysAve, mean = predict(m3), sd = sqrt(sm1$dispersion), log = TRUE))
+
+-2*LLm3 + 2*5 #49069
+
+LLm4 <- sum(dnorm(nhanes_adult_bmi_18_40$BPSysAve, mean = predict(m4), sd = sqrt(sm1$dispersion), log = TRUE))
+
+-2*LLm4 + 2*6 #49032 LOWEST
+
+LLm5 <- sum(dnorm(nhanes_adult_bmi_18_40$BPSysAve, mean = predict(m5), sd = sqrt(sm1$dispersion), log = TRUE))
+
+-2*LLm5 + 2*7 #51717
+
+LLm6 <- sum(dnorm(nhanes_adult_bmi_18_40$BPSysAve, mean = predict(m6), sd = sqrt(sm1$dispersion), log = TRUE))
+
+-2*LLm6 + 2*8 #51709
+
+#model 4 has the most parsimonious fit 
+m4 <- glm(BPSysAve ~ BMI + Age + Gender + PhysActive + Race1, data=nhanes_adult_bmi_18_40)
+m4.1<- glm(BPSysAve ~ BMI + Age + Gender + Race1, data=nhanes_adult_bmi_18_40)
+
+#check last 2 
+LLm4.1 <- sum(dnorm(nhanes_adult_bmi_18_40$BPSysAve, mean = predict(m4.1), sd = sqrt(sm1$dispersion), log = TRUE))
+
+-2*LLm4.1 + 2*5 #49030 LOWEST but only by a tiny bit. Best to just use m4.
+
+#PhysActive and Race are well known in literature to affect both BMI and BP, so they should be included.
+#Income is a good confounder. Income and Education may not be both needed as they both measure SEP, so income can be used. 
+#Final model includes: Age, Sex, Race, Physical activity, and Household income. 
+
 
 #SleepHours
 hist(nhanes_adult1$SleepHrsNight)
